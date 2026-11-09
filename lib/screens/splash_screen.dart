@@ -24,6 +24,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   late AnimationController _animController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
+  bool _hasNavigated = false;
+  bool _showManualButton = false;
 
   @override
   void initState() {
@@ -47,49 +49,65 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     _animController.forward();
     _bootstrapApplication();
+
+    // Fallback timer: if 3.5 seconds pass, show manual "Enter App" button just in case
+    Timer(const Duration(milliseconds: 3500), () {
+      if (mounted && !_hasNavigated) {
+        setState(() => _showManualButton = true);
+      }
+    });
   }
 
   Future<void> _bootstrapApplication() async {
     final startTime = DateTime.now();
 
-    // 1. Initialize Database & sample demo data on first launch
-    final dbService = DatabaseService.instance;
-    final prefs = await PreferencesService.getInstance();
+    try {
+      // 1. Initialize Database & sample demo data
+      final dbService = DatabaseService.instance;
+      final prefs = await PreferencesService.getInstance();
 
-    final isEmpty = await dbService.isDatabaseEmpty();
-    if (isEmpty && prefs.isFirstRun) {
-      await dbService.preloadDemoData();
-      await prefs.setFirstRunCompleted();
-    }
+      final isEmpty = await dbService.isDatabaseEmpty();
+      if (isEmpty || prefs.isFirstRun) {
+        await dbService.preloadDemoData();
+        await prefs.setFirstRunCompleted();
+      }
 
-    // 2. Pre-fetch provider states
-    if (mounted) {
-      await Future.wait([
-        context.read<InventoryProvider>().loadInventory(),
-        context.read<DonationProvider>().loadDonations(),
-        context.read<DistributionProvider>().loadDistributions(),
-        context.read<DashboardProvider>().refreshDashboard(),
-      ]);
-    }
+      // 2. Pre-fetch provider states safely
+      if (mounted) {
+        await Future.wait([
+          context.read<InventoryProvider>().loadInventory(),
+          context.read<DonationProvider>().loadDonations(),
+          context.read<DistributionProvider>().loadDistributions(),
+          context.read<DashboardProvider>().refreshDashboard(),
+        ]);
+      }
+    } catch (e) {
+      debugPrint('Startup warning in bootstrap: $e');
+    } finally {
+      // Ensure splash remains visible for at least 1.8 seconds for pleasant branding UX
+      final elapsed = DateTime.now().difference(startTime);
+      final remaining = const Duration(milliseconds: 1800) - elapsed;
+      if (remaining > Duration.zero) {
+        await Future.delayed(remaining);
+      }
 
-    // Ensure splash remains visible for at least 2 seconds for pleasant UX
-    final elapsed = DateTime.now().difference(startTime);
-    final remaining = const Duration(milliseconds: 2000) - elapsed;
-    if (remaining > Duration.zero) {
-      await Future.delayed(remaining);
+      _navigateToMain();
     }
+  }
 
-    if (mounted) {
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          transitionDuration: const Duration(milliseconds: 600),
-          pageBuilder: (_, __, ___) => const MainShellScreen(),
-          transitionsBuilder: (_, animation, __, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-        ),
-      );
-    }
+  void _navigateToMain() {
+    if (_hasNavigated || !mounted) return;
+    _hasNavigated = true;
+
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 500),
+        pageBuilder: (_, __, ___) => const MainShellScreen(),
+        transitionsBuilder: (_, animation, __, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    );
   }
 
   @override
@@ -181,15 +199,27 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 ),
                 const SizedBox(height: 48),
 
-                // Loading Indicator
-                const SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+                // Loading Indicator / Fallback Action
+                if (!_showManualButton)
+                  const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+                    ),
+                  )
+                else
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                    onPressed: _navigateToMain,
+                    icon: const Icon(Icons.arrow_forward),
+                    label: const Text('Enter Dashboard', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
-                ),
               ],
             ),
           ),
@@ -198,4 +228,3 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     );
   }
 }
-

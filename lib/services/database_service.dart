@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:io' if (dart.library.html) 'dart:html' as universal_io;
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
@@ -10,8 +10,8 @@ import '../models/inventory_model.dart';
 import '../models/distribution_model.dart';
 import '../models/transaction_record_model.dart';
 
-/// Database management service handling SQLite database initialization,
-/// migrations, atomic transactions, and sample demo data preloading.
+/// Database management service handling SQLite database initialization for Android/Desktop,
+/// with an automatic reactive fallback store for Web (Render / Browser) deployments.
 class DatabaseService {
   static const String _dbName = 'foodbridge.db';
   static const int _dbVersion = 1;
@@ -20,6 +20,12 @@ class DatabaseService {
   static Database? _database;
   final Uuid _uuid = const Uuid();
 
+  // In-memory web fallback store
+  final List<DonationModel> _webDonations = [];
+  final List<InventoryModel> _webInventory = [];
+  final List<DistributionModel> _webDistributions = [];
+  bool _webInitialized = false;
+
   DatabaseService._();
 
   static DatabaseService get instance {
@@ -27,27 +33,41 @@ class DatabaseService {
     return _instance!;
   }
 
-  Future<Database> get database async {
+  Future<Database?> get database async {
+    if (kIsWeb) return null;
     if (_database != null) return _database!;
     _database = await _initDatabase();
     return _database!;
   }
 
-  Future<Database> _initDatabase() async {
-    // If running on desktop platform (Windows, Linux, macOS), initialize FFI
-    if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
-      sqfliteFfiInit();
-      databaseFactory = databaseFactoryFfi;
+  Future<Database?> _initDatabase() async {
+    if (kIsWeb) return null;
+
+    try {
+      if (!kIsWeb) {
+        // Desktop platform check
+        final isDesktop = defaultTargetPlatform == TargetPlatform.windows ||
+            defaultTargetPlatform == TargetPlatform.linux ||
+            defaultTargetPlatform == TargetPlatform.macOS;
+
+        if (isDesktop) {
+          sqfliteFfiInit();
+          databaseFactory = databaseFactoryFfi;
+        }
+      }
+
+      final dbPath = await getDatabasesPath();
+      final fullPath = p.join(dbPath, _dbName);
+
+      return await openDatabase(
+        fullPath,
+        version: _dbVersion,
+        onCreate: _onCreate,
+      );
+    } catch (e) {
+      debugPrint('SQLite initialization warning: $e. Falling back to web store.');
+      return null;
     }
-
-    final dbPath = await getDatabasesPath();
-    final fullPath = p.join(dbPath, _dbName);
-
-    return await openDatabase(
-      fullPath,
-      version: _dbVersion,
-      onCreate: _onCreate,
-    );
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -106,52 +126,49 @@ class DatabaseService {
   // ==========================================
 
   Future<List<DonationModel>> getAllDonations() async {
-    final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'donations',
-      orderBy: 'donation_date DESC, created_at DESC',
-    );
-    return maps.map((m) => DonationModel.fromMap(m)).toList();
+    if (kIsWeb) {
+      final list = List<DonationModel>.from(_webDonations);
+      list.sort((a, b) => b.donationDate.compareTo(a.donationDate));
+      return list;
+    }
+
+    try {
+      final db = await database;
+      if (db == null) return List.from(_webDonations);
+      final List<Map<String, dynamic>> maps = await db.query(
+        'donations',
+        orderBy: 'donation_date DESC, created_at DESC',
+      );
+      return maps.map((m) => DonationModel.fromMap(m)).toList();
+    } catch (_) {
+      return List.from(_webDonations);
+    }
   }
 
   /// Inserts a donation and automatically updates or creates the inventory item
-  /// inside a single ACID SQLite transaction.
+  /// inside a single ACID SQLite transaction (or web state).
   Future<void> recordDonationWithInventorySync(DonationModel donation) async {
-    final db = await database;
-    await db.transaction((txn) async {
-      // 1. Insert donation record
-      await txn.insert('donations', donation.toMap());
-
-      // 2. Check if identical item (same name, category, unit) exists in inventory
-      final List<Map<String, dynamic>> existingItems = await txn.query(
-        'inventory',
-        where: 'LOWER(food_name) = ? AND category = ? AND unit = ?',
-        whereArgs: [donation.foodItemName.trim().toLowerCase(), donation.category, donation.unit],
+    if (kIsWeb) {
+      _webDonations.insert(0, donation);
+      final existingIndex = _webInventory.indexWhere(
+        (i) =>
+            i.foodName.trim().toLowerCase() == donation.foodItemName.trim().toLowerCase() &&
+            i.category == donation.category &&
+            i.unit == donation.unit,
       );
 
-      if (existingItems.isNotEmpty) {
-        // Update existing item
-        final existing = InventoryModel.fromMap(existingItems.first);
-        final newQuantity = existing.availableQuantity + donation.quantity;
-
-        // Keep earlier expiry date if new donation expires sooner
+      if (existingIndex >= 0) {
+        final existing = _webInventory[existingIndex];
         final effectiveExpiry = donation.expiryDate.isBefore(existing.expiryDate)
             ? donation.expiryDate
             : existing.expiryDate;
-
-        await txn.update(
-          'inventory',
-          {
-            'available_quantity': newQuantity,
-            'expiry_date': effectiveExpiry.toIso8601String(),
-            'last_updated': DateTime.now().toIso8601String(),
-          },
-          where: 'id = ?',
-          whereArgs: [existing.id],
+        _webInventory[existingIndex] = existing.copyWith(
+          availableQuantity: existing.availableQuantity + donation.quantity,
+          expiryDate: effectiveExpiry,
+          lastUpdated: DateTime.now(),
         );
       } else {
-        // Create new inventory entry
-        final newInventoryItem = InventoryModel(
+        _webInventory.add(InventoryModel(
           id: _uuid.v4(),
           foodName: donation.foodItemName.trim(),
           category: donation.category,
@@ -159,91 +176,182 @@ class DatabaseService {
           unit: donation.unit,
           expiryDate: donation.expiryDate,
           lastUpdated: DateTime.now(),
+        ));
+      }
+      return;
+    }
+
+    try {
+      final db = await database;
+      if (db == null) return;
+      await db.transaction((txn) async {
+        // 1. Insert donation record
+        await txn.insert('donations', donation.toMap());
+
+        // 2. Check if identical item (same name, category, unit) exists in inventory
+        final List<Map<String, dynamic>> existingItems = await txn.query(
+          'inventory',
+          where: 'LOWER(food_name) = ? AND category = ? AND unit = ?',
+          whereArgs: [donation.foodItemName.trim().toLowerCase(), donation.category, donation.unit],
         );
 
-        await txn.insert('inventory', newInventoryItem.toMap());
-      }
-    });
+        if (existingItems.isNotEmpty) {
+          final existing = InventoryModel.fromMap(existingItems.first);
+          final newQuantity = existing.availableQuantity + donation.quantity;
+          final effectiveExpiry = donation.expiryDate.isBefore(existing.expiryDate)
+              ? donation.expiryDate
+              : existing.expiryDate;
+
+          await txn.update(
+            'inventory',
+            {
+              'available_quantity': newQuantity,
+              'expiry_date': effectiveExpiry.toIso8601String(),
+              'last_updated': DateTime.now().toIso8601String(),
+            },
+            where: 'id = ?',
+            whereArgs: [existing.id],
+          );
+        } else {
+          final newInventoryItem = InventoryModel(
+            id: _uuid.v4(),
+            foodName: donation.foodItemName.trim(),
+            category: donation.category,
+            availableQuantity: donation.quantity,
+            unit: donation.unit,
+            expiryDate: donation.expiryDate,
+            lastUpdated: DateTime.now(),
+          );
+          await txn.insert('inventory', newInventoryItem.toMap());
+        }
+      });
+    } catch (e) {
+      debugPrint('Error recording donation in DB: $e');
+    }
   }
 
-  /// Updates a donation record and synchronizes the inventory quantity difference.
   Future<void> updateDonationWithInventorySync(
     DonationModel updatedDonation,
     DonationModel oldDonation,
   ) async {
-    final db = await database;
-    await db.transaction((txn) async {
-      // Update donation record
-      await txn.update(
-        'donations',
-        updatedDonation.toMap(),
-        where: 'id = ?',
-        whereArgs: [updatedDonation.id],
-      );
+    if (kIsWeb) {
+      final idx = _webDonations.indexWhere((d) => d.id == updatedDonation.id);
+      if (idx >= 0) _webDonations[idx] = updatedDonation;
 
       final diff = updatedDonation.quantity - oldDonation.quantity;
       if (diff != 0) {
+        final invIdx = _webInventory.indexWhere(
+          (i) =>
+              i.foodName.trim().toLowerCase() == oldDonation.foodItemName.trim().toLowerCase() &&
+              i.category == oldDonation.category &&
+              i.unit == oldDonation.unit,
+        );
+        if (invIdx >= 0) {
+          final existing = _webInventory[invIdx];
+          _webInventory[invIdx] = existing.copyWith(
+            availableQuantity: (existing.availableQuantity + diff).clamp(0.0, 999999.0),
+            lastUpdated: DateTime.now(),
+          );
+        }
+      }
+      return;
+    }
+
+    try {
+      final db = await database;
+      if (db == null) return;
+      await db.transaction((txn) async {
+        await txn.update(
+          'donations',
+          updatedDonation.toMap(),
+          where: 'id = ?',
+          whereArgs: [updatedDonation.id],
+        );
+
+        final diff = updatedDonation.quantity - oldDonation.quantity;
+        if (diff != 0) {
+          final List<Map<String, dynamic>> items = await txn.query(
+            'inventory',
+            where: 'LOWER(food_name) = ? AND category = ? AND unit = ?',
+            whereArgs: [
+              oldDonation.foodItemName.trim().toLowerCase(),
+              oldDonation.category,
+              oldDonation.unit,
+            ],
+          );
+
+          if (items.isNotEmpty) {
+            final existing = InventoryModel.fromMap(items.first);
+            final updatedQty = (existing.availableQuantity + diff).clamp(0.0, 999999.0);
+            await txn.update(
+              'inventory',
+              {
+                'available_quantity': updatedQty,
+                'last_updated': DateTime.now().toIso8601String(),
+              },
+              where: 'id = ?',
+              whereArgs: [existing.id],
+            );
+          }
+        }
+      });
+    } catch (e) {
+      debugPrint('Error updating donation in DB: $e');
+    }
+  }
+
+  Future<void> deleteDonationWithInventorySync(DonationModel donation) async {
+    if (kIsWeb) {
+      _webDonations.removeWhere((d) => d.id == donation.id);
+      final invIdx = _webInventory.indexWhere(
+        (i) =>
+            i.foodName.trim().toLowerCase() == donation.foodItemName.trim().toLowerCase() &&
+            i.category == donation.category &&
+            i.unit == donation.unit,
+      );
+      if (invIdx >= 0) {
+        final existing = _webInventory[invIdx];
+        _webInventory[invIdx] = existing.copyWith(
+          availableQuantity: (existing.availableQuantity - donation.quantity).clamp(0.0, 999999.0),
+          lastUpdated: DateTime.now(),
+        );
+      }
+      return;
+    }
+
+    try {
+      final db = await database;
+      if (db == null) return;
+      await db.transaction((txn) async {
+        await txn.delete('donations', where: 'id = ?', whereArgs: [donation.id]);
+
         final List<Map<String, dynamic>> items = await txn.query(
           'inventory',
           where: 'LOWER(food_name) = ? AND category = ? AND unit = ?',
           whereArgs: [
-            oldDonation.foodItemName.trim().toLowerCase(),
-            oldDonation.category,
-            oldDonation.unit,
+            donation.foodItemName.trim().toLowerCase(),
+            donation.category,
+            donation.unit,
           ],
         );
 
         if (items.isNotEmpty) {
           final existing = InventoryModel.fromMap(items.first);
-          final updatedQty = (existing.availableQuantity + diff).clamp(0.0, 999999.0);
+          final newQty = (existing.availableQuantity - donation.quantity).clamp(0.0, 999999.0);
           await txn.update(
             'inventory',
             {
-              'available_quantity': updatedQty,
+              'available_quantity': newQty,
               'last_updated': DateTime.now().toIso8601String(),
             },
             where: 'id = ?',
             whereArgs: [existing.id],
           );
         }
-      }
-    });
-  }
-
-  /// Deletes a donation and adjusts inventory stock accordingly.
-  Future<void> deleteDonationWithInventorySync(DonationModel donation) async {
-    final db = await database;
-    await db.transaction((txn) async {
-      await txn.delete(
-        'donations',
-        where: 'id = ?',
-        whereArgs: [donation.id],
-      );
-
-      final List<Map<String, dynamic>> items = await txn.query(
-        'inventory',
-        where: 'LOWER(food_name) = ? AND category = ? AND unit = ?',
-        whereArgs: [
-          donation.foodItemName.trim().toLowerCase(),
-          donation.category,
-          donation.unit,
-        ],
-      );
-
-      if (items.isNotEmpty) {
-        final existing = InventoryModel.fromMap(items.first);
-        final newQty = (existing.availableQuantity - donation.quantity).clamp(0.0, 999999.0);
-        await txn.update(
-          'inventory',
-          {
-            'available_quantity': newQty,
-            'last_updated': DateTime.now().toIso8601String(),
-          },
-          where: 'id = ?',
-          whereArgs: [existing.id],
-        );
-      }
-    });
+      });
+    } catch (e) {
+      debugPrint('Error deleting donation in DB: $e');
+    }
   }
 
   // ==========================================
@@ -251,52 +359,98 @@ class DatabaseService {
   // ==========================================
 
   Future<List<InventoryModel>> getAllInventory() async {
-    final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'inventory',
-      orderBy: 'food_name ASC',
-    );
-    return maps.map((m) => InventoryModel.fromMap(m)).toList();
+    if (kIsWeb) {
+      return List.from(_webInventory);
+    }
+
+    try {
+      final db = await database;
+      if (db == null) return List.from(_webInventory);
+      final List<Map<String, dynamic>> maps = await db.query(
+        'inventory',
+        orderBy: 'food_name ASC',
+      );
+      return maps.map((m) => InventoryModel.fromMap(m)).toList();
+    } catch (_) {
+      return List.from(_webInventory);
+    }
   }
 
   Future<InventoryModel?> getInventoryItemById(String id) async {
-    final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'inventory',
-      where: 'id = ?',
-      whereArgs: [id],
-      limit: 1,
-    );
-    if (maps.isEmpty) return null;
-    return InventoryModel.fromMap(maps.first);
+    if (kIsWeb) {
+      final matches = _webInventory.where((i) => i.id == id);
+      return matches.isNotEmpty ? matches.first : null;
+    }
+
+    try {
+      final db = await database;
+      if (db == null) {
+        final matches = _webInventory.where((i) => i.id == id);
+        return matches.isNotEmpty ? matches.first : null;
+      }
+      final List<Map<String, dynamic>> maps = await db.query(
+        'inventory',
+        where: 'id = ?',
+        whereArgs: [id],
+        limit: 1,
+      );
+      if (maps.isEmpty) return null;
+      return InventoryModel.fromMap(maps.first);
+    } catch (_) {
+      final matches = _webInventory.where((i) => i.id == id);
+      return matches.isNotEmpty ? matches.first : null;
+    }
   }
 
   Future<void> insertInventoryItem(InventoryModel item) async {
-    final db = await database;
-    await db.insert(
-      'inventory',
-      item.toMap(),
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    if (kIsWeb) {
+      final idx = _webInventory.indexWhere((i) => i.id == item.id);
+      if (idx >= 0) {
+        _webInventory[idx] = item;
+      } else {
+        _webInventory.insert(0, item);
+      }
+      return;
+    }
+
+    try {
+      final db = await database;
+      if (db == null) return;
+      await db.insert('inventory', item.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    } catch (e) {
+      debugPrint('Error inserting inventory item: $e');
+    }
   }
 
   Future<void> updateInventoryItem(InventoryModel item) async {
-    final db = await database;
-    await db.update(
-      'inventory',
-      item.toMap(),
-      where: 'id = ?',
-      whereArgs: [item.id],
-    );
+    if (kIsWeb) {
+      final idx = _webInventory.indexWhere((i) => i.id == item.id);
+      if (idx >= 0) _webInventory[idx] = item;
+      return;
+    }
+
+    try {
+      final db = await database;
+      if (db == null) return;
+      await db.update('inventory', item.toMap(), where: 'id = ?', whereArgs: [item.id]);
+    } catch (e) {
+      debugPrint('Error updating inventory item: $e');
+    }
   }
 
   Future<void> deleteInventoryItem(String id) async {
-    final db = await database;
-    await db.delete(
-      'inventory',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    if (kIsWeb) {
+      _webInventory.removeWhere((i) => i.id == id);
+      return;
+    }
+
+    try {
+      final db = await database;
+      if (db == null) return;
+      await db.delete('inventory', where: 'id = ?', whereArgs: [id]);
+    } catch (e) {
+      debugPrint('Error deleting inventory item: $e');
+    }
   }
 
   // ==========================================
@@ -304,20 +458,54 @@ class DatabaseService {
   // ==========================================
 
   Future<List<DistributionModel>> getAllDistributions() async {
-    final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'distributions',
-      orderBy: 'distribution_date DESC, created_at DESC',
-    );
-    return maps.map((m) => DistributionModel.fromMap(m)).toList();
+    if (kIsWeb) {
+      final list = List<DistributionModel>.from(_webDistributions);
+      list.sort((a, b) => b.distributionDate.compareTo(a.distributionDate));
+      return list;
+    }
+
+    try {
+      final db = await database;
+      if (db == null) return List.from(_webDistributions);
+      final List<Map<String, dynamic>> maps = await db.query(
+        'distributions',
+        orderBy: 'distribution_date DESC, created_at DESC',
+      );
+      return maps.map((m) => DistributionModel.fromMap(m)).toList();
+    } catch (_) {
+      return List.from(_webDistributions);
+    }
   }
 
-  /// Atomically validates stock sufficiency and expiry date, inserts distribution record,
-  /// and deducts distributed quantity from inventory.
   Future<void> recordDistributionTransaction(DistributionModel distribution) async {
+    if (kIsWeb) {
+      final itemIdx = _webInventory.indexWhere((i) => i.id == distribution.foodItemId);
+      if (itemIdx < 0) {
+        throw Exception('The selected food item does not exist in inventory.');
+      }
+      final item = _webInventory[itemIdx];
+      if (item.isExpired) {
+        throw Exception('Safety restriction: Cannot distribute expired food (${item.foodName}).');
+      }
+      if (item.availableQuantity < distribution.quantityDistributed) {
+        throw Exception(
+          'Insufficient stock for "${item.foodName}". '
+          'Requested: ${distribution.quantityDistributed} ${item.unit}, '
+          'Available: ${item.availableQuantity} ${item.unit}.',
+        );
+      }
+
+      _webDistributions.insert(0, distribution);
+      _webInventory[itemIdx] = item.copyWith(
+        availableQuantity: item.availableQuantity - distribution.quantityDistributed,
+        lastUpdated: DateTime.now(),
+      );
+      return;
+    }
+
     final db = await database;
+    if (db == null) return;
     await db.transaction((txn) async {
-      // 1. Fetch current inventory row
       final List<Map<String, dynamic>> items = await txn.query(
         'inventory',
         where: 'id = ?',
@@ -331,12 +519,10 @@ class DatabaseService {
 
       final item = InventoryModel.fromMap(items.first);
 
-      // 2. Validate expiry
       if (item.isExpired) {
         throw Exception('Safety restriction: Cannot distribute expired food (${item.foodName}).');
       }
 
-      // 3. Validate sufficient stock
       if (item.availableQuantity < distribution.quantityDistributed) {
         throw Exception(
           'Insufficient stock for "${item.foodName}". '
@@ -345,10 +531,8 @@ class DatabaseService {
         );
       }
 
-      // 4. Record distribution
       await txn.insert('distributions', distribution.toMap());
 
-      // 5. Deduct from inventory
       final remaining = item.availableQuantity - distribution.quantityDistributed;
       await txn.update(
         'inventory',
@@ -401,7 +585,6 @@ class DatabaseService {
       ));
     }
 
-    // Sort descending by date
     transactions.sort((a, b) => b.date.compareTo(a.date));
     return transactions;
   }
@@ -411,18 +594,25 @@ class DatabaseService {
   // ==========================================
 
   Future<bool> isDatabaseEmpty() async {
-    final db = await database;
-    final count = Sqflite.firstIntValue(
-      await db.rawQuery('SELECT COUNT(*) FROM inventory'),
-    );
-    return (count ?? 0) == 0;
+    if (kIsWeb) {
+      return !_webInitialized && _webInventory.isEmpty;
+    }
+
+    try {
+      final db = await database;
+      if (db == null) return _webInventory.isEmpty;
+      final count = Sqflite.firstIntValue(
+        await db.rawQuery('SELECT COUNT(*) FROM inventory'),
+      );
+      return (count ?? 0) == 0;
+    } catch (_) {
+      return _webInventory.isEmpty;
+    }
   }
 
   Future<void> preloadDemoData() async {
-    final db = await database;
     final now = DateTime.now();
 
-    // Sample Inventory Items across multiple categories, quantities, and realistic expiries
     final List<InventoryModel> sampleInventory = [
       InventoryModel(
         id: 'inv-1',
@@ -466,7 +656,7 @@ class DatabaseService {
         category: 'Packaged Food',
         availableQuantity: 120.0,
         unit: 'packets',
-        expiryDate: now.add(const Duration(days: 25)), // Expiring within 30 days
+        expiryDate: now.add(const Duration(days: 25)),
         lastUpdated: now,
       ),
       InventoryModel(
@@ -475,25 +665,25 @@ class DatabaseService {
         category: 'Vegetables',
         availableQuantity: 35.0,
         unit: 'kg',
-        expiryDate: now.add(const Duration(days: 4)), // Expiring soon (<7 days)
+        expiryDate: now.add(const Duration(days: 4)),
         lastUpdated: now,
       ),
       InventoryModel(
         id: 'inv-7',
         foodName: 'Pasteurized Milk Packets',
         category: 'Dairy Products',
-        availableQuantity: 15.0, // Low stock (<= 20)
+        availableQuantity: 15.0,
         unit: 'litres',
-        expiryDate: now.add(const Duration(days: 2)), // Expiring soon
+        expiryDate: now.add(const Duration(days: 2)),
         lastUpdated: now,
       ),
       InventoryModel(
         id: 'inv-8',
         foodName: 'Fresh Apples & Oranges',
         category: 'Fruits',
-        availableQuantity: 18.0, // Low stock
+        availableQuantity: 18.0,
         unit: 'kg',
-        expiryDate: now.add(const Duration(days: 6)), // Expiring soon
+        expiryDate: now.add(const Duration(days: 6)),
         lastUpdated: now,
       ),
       InventoryModel(
@@ -502,12 +692,11 @@ class DatabaseService {
         category: 'Packaged Food',
         availableQuantity: 10.0,
         unit: 'packets',
-        expiryDate: now.subtract(const Duration(days: 2)), // Expired item for demonstration
+        expiryDate: now.subtract(const Duration(days: 2)),
         lastUpdated: now,
       ),
     ];
 
-    // Sample Donations
     final List<DonationModel> sampleDonations = [
       DonationModel(
         id: 'don-1',
@@ -581,7 +770,6 @@ class DatabaseService {
       ),
     ];
 
-    // Sample Distributions
     final List<DistributionModel> sampleDistributions = [
       DistributionModel(
         id: 'dist-1',
@@ -633,26 +821,68 @@ class DatabaseService {
       ),
     ];
 
-    await db.transaction((txn) async {
-      for (final item in sampleInventory) {
-        await txn.insert('inventory', item.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    if (kIsWeb) {
+      _webInventory.clear();
+      _webInventory.addAll(sampleInventory);
+      _webDonations.clear();
+      _webDonations.addAll(sampleDonations);
+      _webDistributions.clear();
+      _webDistributions.addAll(sampleDistributions);
+      _webInitialized = true;
+      return;
+    }
+
+    try {
+      final db = await database;
+      if (db == null) {
+        _webInventory.addAll(sampleInventory);
+        _webDonations.addAll(sampleDonations);
+        _webDistributions.addAll(sampleDistributions);
+        return;
       }
-      for (final don in sampleDonations) {
-        await txn.insert('donations', don.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-      }
-      for (final dist in sampleDistributions) {
-        await txn.insert('distributions', dist.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-      }
-    });
+      await db.transaction((txn) async {
+        for (final item in sampleInventory) {
+          await txn.insert('inventory', item.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+        for (final don in sampleDonations) {
+          await txn.insert('donations', don.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+        for (final dist in sampleDistributions) {
+          await txn.insert('distributions', dist.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+      });
+    } catch (e) {
+      debugPrint('Error preloading demo data in DB: $e');
+      _webInventory.addAll(sampleInventory);
+      _webDonations.addAll(sampleDonations);
+      _webDistributions.addAll(sampleDistributions);
+    }
   }
 
   Future<void> clearAllData() async {
-    final db = await database;
-    await db.transaction((txn) async {
-      await txn.delete('distributions');
-      await txn.delete('donations');
-      await txn.delete('inventory');
-    });
+    if (kIsWeb) {
+      _webInventory.clear();
+      _webDonations.clear();
+      _webDistributions.clear();
+      return;
+    }
+
+    try {
+      final db = await database;
+      if (db == null) {
+        _webInventory.clear();
+        _webDonations.clear();
+        _webDistributions.clear();
+        return;
+      }
+      await db.transaction((txn) async {
+        await txn.delete('distributions');
+        await txn.delete('donations');
+        await txn.delete('inventory');
+      });
+    } catch (e) {
+      debugPrint('Error clearing data in DB: $e');
+    }
   }
 
   Future<void> resetToDemoData() async {
@@ -660,4 +890,3 @@ class DatabaseService {
     await preloadDemoData();
   }
 }
-
