@@ -1,0 +1,12 @@
+{
+  "name": "foodbridge",
+  "version": "1.0.0",
+  "description": "FoodBridge - Food Bank Inventory and Donation Tracker Web Deployment",
+  "main": "web_preview/server.js",
+  "scripts": {
+    "start": "node web_preview/server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -2,7 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = 8080;
+const PORT = process.env.PORT || 8080;
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
 const MIME_TYPES = {
@@ -36,7 +36,7 @@ const server = http.createServer((req, res) => {
   });
 });
 
-server.listen(PORT, 'localhost', () => {
-  console.log(`FoodBridge Local Web Preview running at http://localhost:${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`FoodBridge Web Server running on port ${PORT}`);
 });
 
