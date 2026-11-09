@@ -1,0 +1,1475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FoodBridge – Food Bank Inventory & Donation Tracker (Live Preview)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <style>
+    :root {
+      --primary: #237A57;
+      --primary-dark: #165239;
+      --primary-light: #389B72;
+      --secondary: #E8F5EC;
+      --bg-light: #F8FAF8;
+      --card-light: #FFFFFF;
+      --text-main: #0F172A;
+      --text-muted: #64748B;
+      --border-light: #E2E8F0;
+      --danger: #C62828;
+      --danger-bg: #FFEBEE;
+      --warning: #E65100;
+      --warning-bg: #FFF3E0;
+      --success: #2E7D32;
+      --success-bg: #E8F5E9;
+      --purple: #7C3AED;
+      --purple-bg: #F3E8FF;
+      --amber: #D97706;
+      --font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    [data-theme="dark"] {
+      --bg-light: #121815;
+      --card-light: #1E2822;
+      --text-main: #F8FAFC;
+      --text-muted: #94A3B8;
+      --border-light: #2E3D35;
+      --secondary: #1F382B;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: var(--font-family);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background: #0B1310;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-main);
+      padding: 20px 10px;
+    }
+
+    .device-header {
+      color: #E8F5EC;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+    .device-header h1 {
+      font-size: 20px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .device-header p {
+      font-size: 13px;
+      color: #94A3B8;
+      margin-top: 4px;
+    }
+    .device-header .badge {
+      background: rgba(35, 122, 87, 0.4);
+      border: 1px solid #237A57;
+      color: #A7F3D0;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    /* Mobile Device Frame */
+    .phone-container {
+      width: 412px;
+      height: 870px;
+      background: var(--bg-light);
+      border-radius: 44px;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 0 10px #1E2923, 0 0 0 12px #2E3D35;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* Top Notch / Status Bar */
+    .status-bar {
+      height: 38px;
+      background: var(--bg-light);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-main);
+      z-index: 10;
+    }
+    .status-bar .notch {
+      width: 110px;
+      height: 18px;
+      background: #1E2923;
+      border-radius: 0 0 12px 12px;
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    /* Top Navigation App Bar */
+    .app-header {
+      background: var(--bg-light);
+      padding: 6px 18px 12px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-light);
+      z-index: 9;
+    }
+    .app-header .title-area h2 {
+      font-size: 19px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+      color: var(--text-main);
+    }
+    .app-header .title-area span {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .icon-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: none;
+      background: transparent;
+      color: var(--primary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      transition: background 0.15s;
+    }
+    .icon-btn:hover {
+      background: var(--secondary);
+    }
+    .icon-btn .badge-dot {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      background: var(--danger);
+      color: white;
+      font-size: 9px;
+      font-weight: 800;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Screen Views Content Area */
+    .screen-viewport {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 14px 16px 80px 16px;
+      scroll-behavior: smooth;
+    }
+
+    /* Bottom Navigation Bar */
+    .bottom-nav {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 64px;
+      background: var(--card-light);
+      border-top: 1px solid var(--border-light);
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      padding: 0 4px 6px 4px;
+      z-index: 20;
+    }
+    .nav-tab {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      color: var(--text-muted);
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      padding: 6px 12px;
+      border-radius: 12px;
+      transition: all 0.15s;
+    }
+    .nav-tab .material-symbols-rounded {
+      font-size: 22px;
+      font-variation-settings: 'FILL' 0;
+    }
+    .nav-tab span {
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .nav-tab.active {
+      color: var(--primary);
+    }
+    .nav-tab.active .material-symbols-rounded {
+      font-variation-settings: 'FILL' 1;
+    }
+
+    /* General Card Component */
+    .card {
+      background: var(--card-light);
+      border-radius: 16px;
+      border: 1px solid var(--border-light);
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.02);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    /* Welcome SDG Banner */
+    .banner-hero {
+      background: linear-gradient(135deg, #237A57 0%, #165239 100%);
+      color: white;
+      border-radius: 20px;
+      padding: 18px;
+      margin-bottom: 16px;
+      box-shadow: 0 10px 20px rgba(35, 122, 87, 0.25);
+    }
+    .banner-hero .top-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(255, 255, 255, 0.2);
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #E8F5EC;
+      margin-bottom: 8px;
+    }
+    .banner-hero h3 {
+      font-size: 18px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+    .banner-hero p {
+      font-size: 12px;
+      color: #D1E7DD;
+      line-height: 1.35;
+    }
+
+    /* KPI Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .kpi-card {
+      background: var(--card-light);
+      border-radius: 14px;
+      border: 1px solid var(--border-light);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 90px;
+      cursor: pointer;
+    }
+    .kpi-card:hover {
+      border-color: var(--primary);
+    }
+    .kpi-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .kpi-header span {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+    .kpi-header .icon-wrap {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .kpi-val {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text-main);
+      margin-top: 6px;
+    }
+    .kpi-sub {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--primary);
+      margin-top: 2px;
+    }
+
+    /* Quick Action Buttons */
+    .action-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .action-btn {
+      background: var(--card-light);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      padding: 10px 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      text-align: center;
+      transition: background 0.15s;
+    }
+    .action-btn:hover {
+      background: var(--secondary);
+    }
+    .action-btn .btn-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+    .action-btn span {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    /* Badges & Chips */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 14px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .badge-success { background: var(--success-bg); color: var(--success); }
+    .badge-warning { background: var(--warning-bg); color: var(--warning); }
+    .badge-danger { background: var(--danger-bg); color: var(--danger); }
+    .badge-info { background: #E1F5FE; color: #0277BD; }
+    .badge-purple { background: var(--purple-bg); color: var(--purple); }
+
+    /* Category Filter Bar */
+    .category-scroll {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+      scrollbar-width: none;
+    }
+    .category-scroll::-webkit-scrollbar { display: none; }
+    .chip {
+      padding: 6px 14px;
+      border-radius: 18px;
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--card-light);
+      border: 1px solid var(--border-light);
+      color: var(--text-main);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .chip.active {
+      background: var(--secondary);
+      border-color: var(--primary);
+      color: var(--primary);
+      font-weight: 800;
+    }
+
+    /* Search input */
+    .search-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--card-light);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      padding: 8px 14px;
+      margin-bottom: 12px;
+    }
+    .search-bar input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      outline: none;
+      font-size: 13px;
+      color: var(--text-main);
+    }
+
+    /* Modal Sheet */
+    .modal-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 100;
+      display: none;
+      align-items: flex-end;
+    }
+    .modal-sheet {
+      width: 100%;
+      max-height: 85%;
+      background: var(--card-light);
+      border-radius: 24px 24px 0 0;
+      padding: 20px;
+      overflow-y: auto;
+      animation: slideUp 0.25s ease-out;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+    .sheet-handle {
+      width: 40px;
+      height: 4px;
+      background: var(--border-light);
+      border-radius: 2px;
+      margin: 0 auto 16px auto;
+    }
+
+    /* Form Fields */
+    .form-group {
+      margin-bottom: 12px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      margin-bottom: 5px;
+    }
+    .form-control {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border-light);
+      background: var(--bg-light);
+      color: var(--text-main);
+      font-size: 13px;
+      outline: none;
+    }
+    .form-control:focus {
+      border-color: var(--primary);
+    }
+    .btn-submit {
+      width: 100%;
+      padding: 13px;
+      border-radius: 12px;
+      border: none;
+      background: var(--primary);
+      color: white;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    /* Bar Chart SVG */
+    .chart-container {
+      background: var(--card-light);
+      border: 1px solid var(--border-light);
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 16px;
+    }
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .chart-header h4 {
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .chart-legend {
+      display: flex;
+      gap: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+    }
+
+    /* FAB */
+    .fab {
+      position: absolute;
+      bottom: 76px;
+      right: 20px;
+      background: var(--primary);
+      color: white;
+      padding: 12px 18px;
+      border-radius: 24px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 6px 16px rgba(35, 122, 87, 0.4);
+      cursor: pointer;
+      border: none;
+      font-size: 13px;
+      font-weight: 700;
+      z-index: 15;
+    }
+
+    /* SnackBar */
+    .snackbar {
+      position: absolute;
+      bottom: 74px;
+      left: 16px;
+      right: 16px;
+      background: #1E2923;
+      color: white;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 150;
+      animation: fadeIn 0.2s;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+
+  <div class="device-header">
+    <h1>
+      <span class="material-symbols-rounded" style="color:#237A57;">volunteer_activism</span>
+      FoodBridge – Live Web Simulation
+    </h1>
+    <p>Running on <strong>http://localhost:8080</strong> • State managed via Provider & SQLite simulation</p>
+  </div>
+
+  <div class="phone-container">
+    <!-- Status Bar -->
+    <div class="status-bar">
+      <span>09:41</span>
+      <div class="notch"></div>
+      <div style="display: flex; gap: 4px; align-items: center;">
+        <span class="material-symbols-rounded" style="font-size: 15px;">signal_cellular_alt</span>
+        <span class="material-symbols-rounded" style="font-size: 15px;">wifi</span>
+        <span class="material-symbols-rounded" style="font-size: 15px;">battery_full</span>
+      </div>
+    </div>
+
+    <!-- App Header -->
+    <div class="app-header">
+      <div class="title-area">
+        <h2 id="appHeaderTitle">FoodBridge</h2>
+        <span id="appHeaderSub">Food Bank Operations Hub</span>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" onclick="openExpiryCenter()" title="Expiry Alerts">
+          <span class="material-symbols-rounded">notifications_active</span>
+          <div class="badge-dot" id="expiryBadgeCount">3</div>
+        </button>
+        <button class="icon-btn" onclick="openHistoryScreen()" title="Transaction History">
+          <span class="material-symbols-rounded">receipt_long</span>
+        </button>
+        <button class="icon-btn" onclick="openSettingsScreen()" title="Settings">
+          <span class="material-symbols-rounded">settings</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Viewport Screens -->
+    <div class="screen-viewport" id="viewport">
+      <!-- Screen content dynamically injected via JS -->
+    </div>
+
+    <!-- Floating Action Button -->
+    <button class="fab" id="mainFab" onclick="onFabClicked()">
+      <span class="material-symbols-rounded">add</span>
+      <span id="fabLabel">New Donation</span>
+    </button>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+      <button class="nav-tab active" onclick="switchTab('dashboard')">
+        <span class="material-symbols-rounded">dashboard</span>
+        <span>Home</span>
+      </button>
+      <button class="nav-tab" onclick="switchTab('donations')">
+        <span class="material-symbols-rounded">favorite</span>
+        <span>Donations</span>
+      </button>
+      <button class="nav-tab" onclick="switchTab('inventory')">
+        <span class="material-symbols-rounded">inventory_2</span>
+        <span>Inventory</span>
+      </button>
+      <button class="nav-tab" onclick="switchTab('distribution')">
+        <span class="material-symbols-rounded">local_shipping</span>
+        <span>Distribution</span>
+      </button>
+      <button class="nav-tab" onclick="switchTab('reports')">
+        <span class="material-symbols-rounded">analytics</span>
+        <span>Reports</span>
+      </button>
+    </div>
+
+    <!-- Dynamic Modal Sheet for Adding Data -->
+    <div class="modal-overlay" id="modalOverlay" onclick="closeModalOnOverlay(event)">
+      <div class="modal-sheet" id="modalSheet"></div>
+    </div>
+
+    <!-- SnackBar Toast -->
+    <div class="snackbar" id="snackbar">
+      <span id="snackbarText">Action completed successfully.</span>
+      <span class="material-symbols-rounded" style="cursor: pointer;" onclick="hideSnackbar()">close</span>
+    </div>
+  </div>
+
+  <script>
+    // In-memory Database State matching SQLite tables
+    let inventory = [
+      { id: 'inv-1', foodName: 'Rice', category: 'Rice and Grains', availableQuantity: 150.0, unit: 'kg', expiryDate: '2026-11-20', status: 'Sufficient' },
+      { id: 'inv-2', foodName: 'Wheat Flour', category: 'Rice and Grains', availableQuantity: 80.0, unit: 'kg', expiryDate: '2026-10-15', status: 'Sufficient' },
+      { id: 'inv-3', foodName: 'Toor Dal', category: 'Pulses', availableQuantity: 45.0, unit: 'kg', expiryDate: '2026-12-05', status: 'Sufficient' },
+      { id: 'inv-4', foodName: 'Sunflower Cooking Oil', category: 'Packaged Food', availableQuantity: 30.0, unit: 'litres', expiryDate: '2026-10-30', status: 'Sufficient' },
+      { id: 'inv-5', foodName: 'Glucose Biscuits', category: 'Packaged Food', availableQuantity: 120.0, unit: 'packets', expiryDate: '2026-09-30', status: 'Expiring Soon' },
+      { id: 'inv-6', foodName: 'Fresh Vegetables Basket', category: 'Vegetables', availableQuantity: 35.0, unit: 'kg', expiryDate: '2026-09-15', status: 'Expiring Soon' },
+      { id: 'inv-7', foodName: 'Pasteurized Milk Packets', category: 'Dairy Products', availableQuantity: 15.0, unit: 'litres', expiryDate: '2026-09-12', status: 'Low Stock' },
+      { id: 'inv-8', foodName: 'Fresh Apples & Oranges', category: 'Fruits', availableQuantity: 18.0, unit: 'kg', expiryDate: '2026-09-16', status: 'Low Stock' },
+      { id: 'inv-9', foodName: 'Artisan Bread Loaves', category: 'Packaged Food', availableQuantity: 10.0, unit: 'packets', expiryDate: '2026-09-02', status: 'Expired' }
+    ];
+
+    let donations = [
+      { id: 'don-1', donorName: 'Green Future NGO', phone: '+91 98765 43210', foodItem: 'Rice', category: 'Rice and Grains', quantity: 175, unit: 'kg', date: '2026-09-01', condition: 'Fresh' },
+      { id: 'don-2', donorName: 'Local Supermarket', phone: '+91 91234 56789', foodItem: 'Glucose Biscuits', category: 'Packaged Food', quantity: 140, unit: 'packets', date: '2026-09-03', condition: 'Good' },
+      { id: 'don-3', donorName: 'Community Volunteers', phone: '+91 99887 76655', foodItem: 'Fresh Vegetables Basket', category: 'Vegetables', quantity: 45, unit: 'kg', date: '2026-09-06', condition: 'Fresh' },
+      { id: 'don-4', donorName: 'Priya Sharma (Individual)', phone: '+91 90123 45678', foodItem: 'Sunflower Cooking Oil', category: 'Packaged Food', quantity: 30, unit: 'litres', date: '2026-09-07', condition: 'Fresh' },
+      { id: 'don-5', donorName: 'City Dairy Co-op', phone: '+91 94567 89012', foodItem: 'Pasteurized Milk Packets', category: 'Dairy Products', quantity: 25, unit: 'litres', date: '2026-09-08', condition: 'Fresh' }
+    ];
+
+    let distributions = [
+      { id: 'dist-1', recipient: 'Community Welfare Center', phone: '+91 98451 11223', foodItem: 'Rice', quantity: 25, unit: 'kg', date: '2026-09-04', purpose: 'Community kitchen lunch program' },
+      { id: 'dist-2', recipient: 'Sneha Nilayam Orphanage', phone: '+91 94401 22334', foodItem: 'Glucose Biscuits', quantity: 20, unit: 'packets', date: '2026-09-05', purpose: 'Evening snacks for resident children' },
+      { id: 'dist-3', recipient: 'Govt Primary School', phone: '+91 93901 33445', foodItem: 'Fresh Vegetables Basket', quantity: 10, unit: 'kg', date: '2026-09-07', purpose: 'Nutritious lunch supplements' },
+      { id: 'dist-4', recipient: 'Needy Families Support', phone: '+91 91001 44556', foodItem: 'Pasteurized Milk Packets', quantity: 10, unit: 'litres', date: '2026-09-08', purpose: 'Dietary relief for toddlers & elderly' }
+    ];
+
+    let currentTab = 'dashboard';
+    let isDarkMode = false;
+    let selectedCategoryFilter = 'All';
+    let searchQuery = '';
+
+    function showSnackbar(msg, isSuccess = true) {
+      const sb = document.getElementById('snackbar');
+      document.getElementById('snackbarText').innerText = msg;
+      sb.style.background = isSuccess ? '#237A57' : '#C62828';
+      sb.style.display = 'flex';
+      setTimeout(() => { sb.style.display = 'none'; }, 3200);
+    }
+    function hideSnackbar() { document.getElementById('snackbar').style.display = 'none'; }
+
+    function switchTab(tabKey) {
+      currentTab = tabKey;
+      selectedCategoryFilter = 'All';
+      searchQuery = '';
+
+      document.querySelectorAll('.nav-tab').forEach((tab, i) => {
+        const keys = ['dashboard', 'donations', 'inventory', 'distribution', 'reports'];
+        tab.classList.toggle('active', keys[i] === tabKey);
+      });
+
+      const fab = document.getElementById('mainFab');
+      const fabLabel = document.getElementById('fabLabel');
+      if (tabKey === 'donations') {
+        fab.style.display = 'flex';
+        fab.style.background = '#237A57';
+        fabLabel.innerText = 'New Donation';
+      } else if (tabKey === 'inventory') {
+        fab.style.display = 'flex';
+        fab.style.background = '#0284C7';
+        fabLabel.innerText = 'Add Food Item';
+      } else if (tabKey === 'distribution') {
+        fab.style.display = 'flex';
+        fab.style.background = '#7C3AED';
+        fabLabel.innerText = 'Distribute Food';
+      } else {
+        fab.style.display = 'none';
+      }
+
+      renderScreen();
+    }
+
+    function renderScreen() {
+      const vp = document.getElementById('viewport');
+      const title = document.getElementById('appHeaderTitle');
+      const sub = document.getElementById('appHeaderSub');
+
+      if (currentTab === 'dashboard') {
+        title.innerText = 'FoodBridge';
+        sub.innerText = 'Food Bank Operations Hub';
+        renderDashboard(vp);
+      } else if (currentTab === 'donations') {
+        title.innerText = 'Donation Management';
+        sub.innerText = 'Food Inflow & Donor Registry';
+        renderDonations(vp);
+      } else if (currentTab === 'inventory') {
+        title.innerText = 'Inventory Stock';
+        sub.innerText = 'Warehouse Storage & Shelf Tracking';
+        renderInventory(vp);
+      } else if (currentTab === 'distribution') {
+        title.innerText = 'Food Distribution';
+        sub.innerText = 'Relief Outflow & Beneficiaries';
+        renderDistribution(vp);
+      } else if (currentTab === 'reports') {
+        title.innerText = 'Reports & Analytics';
+        sub.innerText = 'Zero Hunger (SDG 2) Impact Data';
+        renderReports(vp);
+      }
+    }
+
+    /* ----------------- SCREEN 1: DASHBOARD ----------------- */
+    function renderDashboard(container) {
+      const totalStock = inventory.reduce((a, b) => a + b.availableQuantity, 0);
+      const totalDonationsQty = donations.reduce((a, b) => a + b.quantity, 0);
+      const totalDistQty = distributions.reduce((a, b) => a + b.quantity, 0);
+      const expiringSoonCount = inventory.filter(i => i.status === 'Expiring Soon').length;
+      const lowStockCount = inventory.filter(i => i.status === 'Low Stock' || i.availableQuantity <= 20).length;
+
+      container.innerHTML = `
+        <div class="banner-hero">
+          <div class="top-badge">
+            <span class="material-symbols-rounded" style="font-size: 14px; color: #F59E0B;">bolt</span>
+            Live Localhost Operations
+          </div>
+          <h3>Empowering Zero Hunger (SDG 2)</h3>
+          <p>Rescue surplus food, prevent warehouse spoilage, and distribute relief packages seamlessly.</p>
+        </div>
+
+        <div style="font-size: 14px; font-weight: 800; margin-bottom: 10px;">Operational Metrics</div>
+        <div class="kpi-grid">
+          <div class="kpi-card" onclick="switchTab('inventory')">
+            <div class="kpi-header">
+              <span>Total Items</span>
+              <div class="icon-wrap" style="background:#E1F5FE; color:#0284C7;"><span class="material-symbols-rounded" style="font-size:16px;">inventory_2</span></div>
+            </div>
+            <div>
+              <div class="kpi-val">${inventory.length}</div>
+              <div class="kpi-sub" style="color:#0284C7;">In active stock</div>
+            </div>
+          </div>
+
+          <div class="kpi-card" onclick="switchTab('inventory')">
+            <div class="kpi-header">
+              <span>Available Stock</span>
+              <div class="icon-wrap" style="background:var(--secondary); color:var(--primary);"><span class="material-symbols-rounded" style="font-size:16px;">scale</span></div>
+            </div>
+            <div>
+              <div class="kpi-val">${totalStock} <span style="font-size:13px; font-weight:600;">kg/units</span></div>
+              <div class="kpi-sub">Total preserved</div>
+            </div>
+          </div>
+
+          <div class="kpi-card" onclick="switchTab('donations')">
+            <div class="kpi-header">
+              <span>Donations</span>
+              <div class="icon-wrap" style="background:#FFF3E0; color:#D97706;"><span class="material-symbols-rounded" style="font-size:16px;">volunteer_activism</span></div>
+            </div>
+            <div>
+              <div class="kpi-val">${donations.length}</div>
+              <div class="kpi-sub" style="color:#D97706;">+${totalDonationsQty} units in</div>
+            </div>
+          </div>
+
+          <div class="kpi-card" onclick="switchTab('distribution')">
+            <div class="kpi-header">
+              <span>Distributed</span>
+              <div class="icon-wrap" style="background:#F3E8FF; color:#7C3AED;"><span class="material-symbols-rounded" style="font-size:16px;">local_shipping</span></div>
+            </div>
+            <div>
+              <div class="kpi-val">${totalDistQty}</div>
+              <div class="kpi-sub" style="color:#7C3AED;">${distributions.length} batches</div>
+            </div>
+          </div>
+
+          <div class="kpi-card" onclick="openExpiryCenter()">
+            <div class="kpi-header">
+              <span>Expiring Soon</span>
+              <div class="icon-wrap" style="background:#FFF3E0; color:#E65100;"><span class="material-symbols-rounded" style="font-size:16px;">timer</span></div>
+            </div>
+            <div>
+              <div class="kpi-val" style="color:#E65100;">${expiringSoonCount}</div>
+              <div class="kpi-sub" style="color:#E65100;">≤ 7 days left</div>
+            </div>
+          </div>
+
+          <div class="kpi-card" onclick="switchTab('inventory')">
+            <div class="kpi-header">
+              <span>Low Stock</span>
+              <div class="icon-wrap" style="background:#FFEBEE; color:#C62828;"><span class="material-symbols-rounded" style="font-size:16px;">warning</span></div>
+            </div>
+            <div>
+              <div class="kpi-val" style="color:#C62828;">${lowStockCount}</div>
+              <div class="kpi-sub" style="color:#C62828;">≤ 20 threshold</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="font-size: 14px; font-weight: 800; margin-bottom: 10px;">Quick Actions</div>
+        <div class="action-grid">
+          <div class="action-btn" onclick="openAddDonationModal()">
+            <div class="btn-icon" style="background: var(--primary);"><span class="material-symbols-rounded">add_circle</span></div>
+            <span>Donation</span>
+          </div>
+          <div class="action-btn" onclick="openAddInventoryModal()">
+            <div class="btn-icon" style="background: #0284C7;"><span class="material-symbols-rounded">post_add</span></div>
+            <span>Food Item</span>
+          </div>
+          <div class="action-btn" onclick="openAddDistributionModal()">
+            <div class="btn-icon" style="background: #7C3AED;"><span class="material-symbols-rounded">outbox</span></div>
+            <span>Distribute</span>
+          </div>
+          <div class="action-btn" onclick="switchTab('inventory')">
+            <div class="btn-icon" style="background: #D97706;"><span class="material-symbols-rounded">format_list_bulleted</span></div>
+            <span>Inventory</span>
+          </div>
+        </div>
+
+        <!-- Monthly Trends Chart Card -->
+        <div class="chart-container">
+          <div class="chart-header">
+            <h4>Monthly Flow (Donations vs Distributed)</h4>
+            <div class="chart-legend">
+              <div class="legend-item"><div class="legend-dot" style="background:var(--primary);"></div> Inflow</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#7C3AED;"></div> Outflow</div>
+            </div>
+          </div>
+          <svg viewBox="0 0 350 140" style="width: 100%; height: 130px;">
+            <line x1="20" y1="110" x2="340" y2="110" stroke="#E2E8F0" stroke-width="1" />
+            <line x1="20" y1="65" x2="340" y2="65" stroke="#F1F5F9" stroke-dasharray="3" />
+            <!-- May -->
+            <rect x="40" y="45" width="14" height="65" rx="3" fill="#237A57" />
+            <rect x="58" y="75" width="14" height="35" rx="3" fill="#7C3AED" />
+            <text x="56" y="126" font-size="10" fill="#64748B" text-anchor="middle">May</text>
+            <!-- Jun -->
+            <rect x="95" y="35" width="14" height="75" rx="3" fill="#237A57" />
+            <rect x="113" y="60" width="14" height="50" rx="3" fill="#7C3AED" />
+            <text x="111" y="126" font-size="10" fill="#64748B" text-anchor="middle">Jun</text>
+            <!-- Jul -->
+            <rect x="150" y="30" width="14" height="80" rx="3" fill="#237A57" />
+            <rect x="168" y="50" width="14" height="60" rx="3" fill="#7C3AED" />
+            <text x="166" y="126" font-size="10" fill="#64748B" text-anchor="middle">Jul</text>
+            <!-- Aug -->
+            <rect x="205" y="25" width="14" height="85" rx="3" fill="#237A57" />
+            <rect x="223" y="45" width="14" height="65" rx="3" fill="#7C3AED" />
+            <text x="221" y="126" font-size="10" fill="#64748B" text-anchor="middle">Aug</text>
+            <!-- Sep -->
+            <rect x="260" y="20" width="14" height="90" rx="3" fill="#237A57" />
+            <rect x="278" y="40" width="14" height="70" rx="3" fill="#7C3AED" />
+            <text x="276" y="126" font-size="10" fill="#64748B" text-anchor="middle">Sep</text>
+          </svg>
+        </div>
+
+        <!-- Recent Activity Feed -->
+        <div style="font-size: 14px; font-weight: 800; margin: 16px 0 8px 0; display:flex; justify-content:space-between;">
+          <span>Recent Activity</span>
+          <span style="font-size: 11px; color: var(--primary); cursor: pointer;" onclick="openHistoryScreen()">View All</span>
+        </div>
+        ${donations.slice(0, 3).map(d => `
+          <div class="card" style="padding: 12px; margin-bottom: 8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div style="background:var(--secondary); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:var(--primary);">
+                  <span class="material-symbols-rounded" style="font-size:17px;">volunteer_activism</span>
+                </div>
+                <div>
+                  <div style="font-weight:700; font-size:13px;">${d.foodItem}</div>
+                  <div style="font-size:11px; color:var(--text-muted);">From: ${d.donorName}</div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-weight:800; color:var(--primary); font-size:13px;">+${d.quantity} ${d.unit}</div>
+                <div style="font-size:10px; color:var(--text-muted);">${d.date}</div>
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      `;
+    }
+
+    /* ----------------- SCREEN 2: DONATIONS ----------------- */
+    function renderDonations(container) {
+      const categories = ['All', 'Rice and Grains', 'Vegetables', 'Fruits', 'Dairy Products', 'Packaged Food', 'Pulses'];
+      const filtered = donations.filter(d => {
+        const matchesCat = selectedCategoryFilter === 'All' || d.category === selectedCategoryFilter;
+        const matchesSearch = searchQuery === '' || d.donorName.toLowerCase().includes(searchQuery.toLowerCase()) || d.foodItem.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchesCat && matchesSearch;
+      });
+
+      container.innerHTML = `
+        <div class="search-bar">
+          <span class="material-symbols-rounded" style="color:var(--text-muted); font-size: 19px;">search</span>
+          <input type="text" placeholder="Search donor name or food..." value="${searchQuery}" oninput="searchQuery=this.value; renderDonations(document.getElementById('viewport'));" />
+        </div>
+
+        <div class="category-scroll">
+          ${categories.map(c => `
+            <div class="chip ${selectedCategoryFilter === c ? 'active' : ''}" onclick="selectedCategoryFilter='${c}'; renderDonations(document.getElementById('viewport'));">${c}</div>
+          `).join('')}
+        </div>
+
+        <div style="font-size:12px; font-weight:700; color:var(--text-muted); margin-bottom: 8px;">
+          ${filtered.length} Donation Records
+        </div>
+
+        ${filtered.map(d => `
+          <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+              <div>
+                <span class="status-badge ${d.condition==='Fresh'?'badge-success':(d.condition==='Good'?'badge-info':'badge-warning')}">${d.condition}</span>
+                <div style="font-weight:800; font-size:16px; margin-top:6px;">${d.foodItem}</div>
+                <div style="font-size:11px; color:var(--text-muted);">${d.category}</div>
+              </div>
+              <div style="background:var(--secondary); padding:4px 10px; border-radius:8px; font-weight:800; color:var(--primary); font-size:14px;">
+                +${d.quantity} ${d.unit}
+              </div>
+            </div>
+            <hr style="border:none; border-top:1px solid var(--border-light); margin:10px 0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px;">
+              <div>
+                <span class="material-symbols-rounded" style="font-size:14px; vertical-align:middle; color:var(--primary);">person</span>
+                ${d.donorName} (${d.phone})
+              </div>
+              <div style="color:var(--text-muted); font-size:11px;">${d.date}</div>
+            </div>
+          </div>
+        `).join('')}
+      `;
+    }
+
+    /* ----------------- SCREEN 3: INVENTORY ----------------- */
+    function renderInventory(container) {
+      const expiredCount = inventory.filter(i => i.status === 'Expired').length;
+      const lowCount = inventory.filter(i => i.status === 'Low Stock' || i.availableQuantity <= 20).length;
+
+      container.innerHTML = `
+        <div class="search-bar">
+          <span class="material-symbols-rounded" style="color:var(--text-muted); font-size: 19px;">search</span>
+          <input type="text" placeholder="Search inventory item..." value="${searchQuery}" oninput="searchQuery=this.value; renderInventory(document.getElementById('viewport'));" />
+        </div>
+
+        ${expiredCount > 0 ? `
+          <div style="background:#FFEBEE; border:1px solid rgba(198,40,40,0.3); border-radius:12px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; cursor:pointer;" onclick="openExpiryCenter()">
+            <div style="display:flex; align-items:center; gap:8px; color:#C62828; font-size:12px; font-weight:700;">
+              <span class="material-symbols-rounded" style="font-size:18px;">warning</span>
+              ${expiredCount} Expired Food Item Blocked
+            </div>
+            <span style="font-size:11px; color:#C62828; font-weight:800;">Review &rarr;</span>
+          </div>
+        ` : ''}
+
+        <div style="font-size:12px; font-weight:700; color:var(--text-muted); margin-bottom: 8px;">
+          Warehouse Stock (${inventory.length} items)
+        </div>
+
+        ${inventory.map(item => `
+          <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="status-badge ${item.status==='Sufficient'?'badge-success':(item.status==='Expired'?'badge-danger':'badge-warning')}">${item.status}</span>
+              <span style="font-size:11px; color:var(--text-muted);">${item.category}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:8px;">
+              <div>
+                <div style="font-weight:800; font-size:16px;">${item.foodName}</div>
+                <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">Expires: ${item.expiryDate}</div>
+              </div>
+              <div style="font-size:20px; font-weight:800; color:${item.availableQuantity<=20?'#C62828':'var(--primary)'};">
+                ${item.availableQuantity} <span style="font-size:12px; color:var(--text-muted);">${item.unit}</span>
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      `;
+    }
+
+    /* ----------------- SCREEN 4: DISTRIBUTION ----------------- */
+    function renderDistribution(container) {
+      container.innerHTML = `
+        <div style="background:#F3E8FF; border:1px solid rgba(124,58,237,0.3); border-radius:14px; padding:12px; margin-bottom:14px; display:flex; gap:10px; align-items:center;">
+          <span class="material-symbols-rounded" style="color:#7C3AED;">shield</span>
+          <div style="font-size:11.5px; color:#5B21B6; font-weight:600; line-height:1.35;">
+            Safety Rule: Expired inventory items are prohibited from relief distribution. Stock is automatically deducted upon confirmation.
+          </div>
+        </div>
+
+        <div style="font-size:12px; font-weight:700; color:var(--text-muted); margin-bottom: 8px;">
+          Distribution Logs (${distributions.length} batches)
+        </div>
+
+        ${distributions.map(dist => `
+          <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div style="font-weight:800; font-size:15px; color:#7C3AED;">${dist.recipient}</div>
+              <span class="status-badge badge-purple">Delivered</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin:8px 0;">
+              <div style="font-weight:700; font-size:14px;">${dist.foodItem}</div>
+              <div style="font-weight:800; font-size:15px; color:#7C3AED;">-${dist.quantity} ${dist.unit}</div>
+            </div>
+            <div style="font-size:11px; color:var(--text-muted); font-style:italic;">"${dist.purpose}"</div>
+            <hr style="border:none; border-top:1px solid var(--border-light); margin:8px 0;">
+            <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted);">
+              <span>Phone: ${dist.phone}</span>
+              <span>${dist.date}</span>
+            </div>
+          </div>
+        `).join('')}
+      `;
+    }
+
+    /* ----------------- SCREEN 5: REPORTS & ANALYTICS ----------------- */
+    function renderReports(container) {
+      const totalRec = donations.reduce((a,b) => a + b.quantity, 0);
+      const totalDist = distributions.reduce((a,b) => a + b.quantity, 0);
+      const reliefRatio = totalRec > 0 ? ((totalDist / totalRec) * 100).toFixed(1) : '0.0';
+
+      container.innerHTML = `
+        <div class="banner-hero" style="background:linear-gradient(135deg, #1E3A2F 0%, #237A57 100%);">
+          <div class="top-badge">SDG 2 Zero Hunger Impact</div>
+          <div style="display:flex; align-items:baseline; gap:8px; margin: 8px 0;">
+            <span style="font-size:38px; font-weight:900;">${reliefRatio}%</span>
+            <span style="font-size:13px; color:#D1E7DD;">Redistribution Efficiency</span>
+          </div>
+          <div style="background:rgba(255,255,255,0.2); height:7px; border-radius:4px; overflow:hidden;">
+            <div style="background:#81C784; width:${Math.min(reliefRatio, 100)}%; height:100%;"></div>
+          </div>
+          <p style="margin-top:10px; font-size:11px;">Calculated from Total Food Distributed (${totalDist}) over Total Donations Received (${totalRec}).</p>
+        </div>
+
+        <div style="font-size:14px; font-weight:800; margin-bottom:10px;">Warehouse Breakdown by Category</div>
+        <div class="card">
+          <div style="display:flex; align-items:center; gap:20px;">
+            <svg viewBox="0 0 100 100" style="width:110px; height:110px;">
+              <circle r="25" cx="50" cy="50" fill="transparent" stroke="#237A57" stroke-width="25" stroke-dasharray="80 160" />
+              <circle r="25" cx="50" cy="50" fill="transparent" stroke="#D97706" stroke-width="25" stroke-dasharray="40 160" stroke-dashoffset="-80" />
+              <circle r="25" cx="50" cy="50" fill="transparent" stroke="#7C3AED" stroke-width="25" stroke-dasharray="25 160" stroke-dashoffset="-120" />
+              <circle r="25" cx="50" cy="50" fill="transparent" stroke="#0284C7" stroke-width="25" stroke-dasharray="15 160" stroke-dashoffset="-145" />
+            </svg>
+            <div style="flex:1; font-size:11.5px; font-weight:600; display:flex; flex-direction:column; gap:6px;">
+              <div style="display:flex; align-items:center; gap:6px;"><div style="width:10px; height:10px; background:#237A57; border-radius:2px;"></div> Rice & Grains (50%)</div>
+              <div style="display:flex; align-items:center; gap:6px;"><div style="width:10px; height:10px; background:#D97706; border-radius:2px;"></div> Packaged (25%)</div>
+              <div style="display:flex; align-items:center; gap:6px;"><div style="width:10px; height:10px; background:#7C3AED; border-radius:2px;"></div> Pulses & Dal (15%)</div>
+              <div style="display:flex; align-items:center; gap:6px;"><div style="width:10px; height:10px; background:#0284C7; border-radius:2px;"></div> Dairy & Veg (10%)</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    /* ----------------- MODALS & CRUD FORMS ----------------- */
+    function onFabClicked() {
+      if (currentTab === 'donations') openAddDonationModal();
+      else if (currentTab === 'inventory') openAddInventoryModal();
+      else if (currentTab === 'distribution') openAddDistributionModal();
+    }
+
+    function openModal(contentHtml) {
+      const sheet = document.getElementById('modalSheet');
+      sheet.innerHTML = `<div class="sheet-handle"></div>` + contentHtml;
+      document.getElementById('modalOverlay').style.display = 'flex';
+    }
+    function closeModal() { document.getElementById('modalOverlay').style.display = 'none'; }
+    function closeModalOnOverlay(e) { if (e.target.id === 'modalOverlay') closeModal(); }
+
+    function openAddDonationModal() {
+      openModal(`
+        <h3 style="font-size:18px; font-weight:800; margin-bottom:14px;">Record Food Donation</h3>
+        <div class="form-group">
+          <label>Donor Name *</label>
+          <input class="form-control" id="donName" placeholder="e.g. Green Harvest Trust" />
+        </div>
+        <div class="form-group">
+          <label>Phone Number *</label>
+          <input class="form-control" id="donPhone" placeholder="e.g. +91 98765 43210" />
+        </div>
+        <div class="form-group">
+          <label>Food Item Name *</label>
+          <input class="form-control" id="donItem" placeholder="e.g. Basmati Rice" />
+        </div>
+        <div style="display:flex; gap:10px;">
+          <div class="form-group" style="flex:1;">
+            <label>Quantity *</label>
+            <input class="form-control" id="donQty" type="number" placeholder="50" />
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>Unit *</label>
+            <select class="form-control" id="donUnit">
+              <option>kg</option><option>litres</option><option>packets</option><option>pieces</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Category *</label>
+          <select class="form-control" id="donCat">
+            <option>Rice and Grains</option><option>Vegetables</option><option>Fruits</option><option>Dairy Products</option><option>Packaged Food</option><option>Pulses</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Condition</label>
+          <select class="form-control" id="donCond">
+            <option>Fresh</option><option>Good</option><option>Needs Attention</option>
+          </select>
+        </div>
+        <button class="btn-submit" onclick="saveDonation()">Save Donation & Update Inventory</button>
+      `);
+    }
+
+    function saveDonation() {
+      const name = document.getElementById('donName').value.trim();
+      const phone = document.getElementById('donPhone').value.trim();
+      const item = document.getElementById('donItem').value.trim();
+      const qty = parseFloat(document.getElementById('donQty').value);
+      const unit = document.getElementById('donUnit').value;
+      const cat = document.getElementById('donCat').value;
+      const cond = document.getElementById('donCond').value;
+
+      if (!name || !item || isNaN(qty) || qty <= 0) {
+        showSnackbar('Please fill all required donation fields properly.', false);
+        return;
+      }
+
+      // 1. Add donation
+      donations.unshift({
+        id: 'don-' + Date.now(),
+        donorName: name,
+        phone: phone || '+91 99999 00000',
+        foodItem: item,
+        category: cat,
+        quantity: qty,
+        unit: unit,
+        date: new Date().toISOString().split('T')[0],
+        condition: cond
+      });
+
+      // 2. Synchronize Inventory (ACID simulation)
+      const existing = inventory.find(i => i.foodName.toLowerCase() === item.toLowerCase() && i.unit === unit);
+      if (existing) {
+        existing.availableQuantity += qty;
+      } else {
+        inventory.push({
+          id: 'inv-' + Date.now(),
+          foodName: item,
+          category: cat,
+          availableQuantity: qty,
+          unit: unit,
+          expiryDate: '2026-12-31',
+          status: 'Sufficient'
+        });
+      }
+
+      closeModal();
+      showSnackbar(`Donation saved! +${qty} ${unit} added to warehouse inventory.`);
+      renderScreen();
+    }
+
+    function openAddDistributionModal() {
+      const eligible = inventory.filter(i => i.status !== 'Expired' && i.availableQuantity > 0);
+      openModal(`
+        <h3 style="font-size:18px; font-weight:800; color:#7C3AED; margin-bottom:14px;">Distribute Relief Food</h3>
+        <div class="form-group">
+          <label>Recipient / Organization Name *</label>
+          <input class="form-control" id="distRec" placeholder="e.g. Sneha Welfare Center" />
+        </div>
+        <div class="form-group">
+          <label>Phone Number *</label>
+          <input class="form-control" id="distPhone" placeholder="e.g. +91 94401 22334" />
+        </div>
+        <div class="form-group">
+          <label>Select Food Item from Stock *</label>
+          <select class="form-control" id="distItemSelect" onchange="updateDistItemStockBanner()">
+            ${eligible.map(item => `
+              <option value="${item.id}">${item.foodName} (${item.availableQuantity} ${item.unit} available)</option>
+            `).join('')}
+          </select>
+        </div>
+        <div id="distStockBanner" style="background:var(--secondary); padding:8px 12px; border-radius:8px; font-size:12px; font-weight:700; color:var(--primary); margin-bottom:12px;"></div>
+        <div class="form-group">
+          <label>Quantity to Distribute *</label>
+          <input class="form-control" id="distQty" type="number" placeholder="Enter amount to deduct" />
+        </div>
+        <div class="form-group">
+          <label>Purpose / Relief Program *</label>
+          <input class="form-control" id="distPurpose" placeholder="e.g. Mid-day meals for 50 kids" />
+        </div>
+        <button class="btn-submit" style="background:#7C3AED;" onclick="saveDistribution()">Confirm Distribution & Deduct Stock</button>
+      `);
+      updateDistItemStockBanner();
+    }
+
+    function updateDistItemStockBanner() {
+      const select = document.getElementById('distItemSelect');
+      if (!select) return;
+      const item = inventory.find(i => i.id === select.value);
+      const banner = document.getElementById('distStockBanner');
+      if (item) {
+        banner.innerText = `Available to dispatch: ${item.availableQuantity} ${item.unit}`;
+      }
+    }
+
+    function saveDistribution() {
+      const rec = document.getElementById('distRec').value.trim();
+      const phone = document.getElementById('distPhone').value.trim();
+      const itemId = document.getElementById('distItemSelect').value;
+      const qty = parseFloat(document.getElementById('distQty').value);
+      const purpose = document.getElementById('distPurpose').value.trim();
+      const item = inventory.find(i => i.id === itemId);
+
+      if (!rec || !item || isNaN(qty) || qty <= 0) {
+        showSnackbar('Please enter valid distribution details.', false);
+        return;
+      }
+
+      if (qty > item.availableQuantity) {
+        showSnackbar(`Stock Insufficient! Maximum available: ${item.availableQuantity} ${item.unit}`, false);
+        return;
+      }
+
+      // Deduct stock
+      item.availableQuantity -= qty;
+      distributions.unshift({
+        id: 'dist-' + Date.now(),
+        recipient: rec,
+        phone: phone || '+91 94401 00000',
+        foodItem: item.foodName,
+        quantity: qty,
+        unit: item.unit,
+        date: new Date().toISOString().split('T')[0],
+        purpose: purpose || 'Relief dispatch'
+      });
+
+      closeModal();
+      showSnackbar(`Distribution confirmed! -${qty} ${item.unit} deducted from inventory.`);
+      renderScreen();
+    }
+
+    function openAddInventoryModal() {
+      openModal(`
+        <h3 style="font-size:18px; font-weight:800; color:#0284C7; margin-bottom:14px;">Add Food Item to Inventory</h3>
+        <div class="form-group">
+          <label>Food Name *</label>
+          <input class="form-control" id="invName" placeholder="e.g. Toor Dal" />
+        </div>
+        <div class="form-group">
+          <label>Category *</label>
+          <select class="form-control" id="invCat">
+            <option>Rice and Grains</option><option>Vegetables</option><option>Fruits</option><option>Dairy Products</option><option>Packaged Food</option><option>Pulses</option>
+          </select>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <div class="form-group" style="flex:1;">
+            <label>Available Quantity *</label>
+            <input class="form-control" id="invQty" type="number" placeholder="40" />
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>Unit *</label>
+            <select class="form-control" id="invUnit"><option>kg</option><option>litres</option><option>packets</option><option>pieces</option></select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Expiry Date *</label>
+          <input class="form-control" id="invExp" type="date" value="2026-11-30" />
+        </div>
+        <button class="btn-submit" style="background:#0284C7;" onclick="saveInventoryItem()">Add to Warehouse</button>
+      `);
+    }
+
+    function saveInventoryItem() {
+      const name = document.getElementById('invName').value.trim();
+      const cat = document.getElementById('invCat').value;
+      const qty = parseFloat(document.getElementById('invQty').value);
+      const unit = document.getElementById('invUnit').value;
+      const exp = document.getElementById('invExp').value;
+
+      if (!name || isNaN(qty) || qty < 0) {
+        showSnackbar('Please enter valid item details.', false);
+        return;
+      }
+
+      inventory.unshift({
+        id: 'inv-' + Date.now(),
+        foodName: name,
+        category: cat,
+        availableQuantity: qty,
+        unit: unit,
+        expiryDate: exp,
+        status: qty <= 20 ? 'Low Stock' : 'Sufficient'
+      });
+
+      closeModal();
+      showSnackbar(`"${name}" added to inventory.`);
+      renderScreen();
+    }
+
+    /* ----------------- SUB-SCREENS: EXPIRY, HISTORY, SETTINGS ----------------- */
+    function openExpiryCenter() {
+      const expired = inventory.filter(i => i.status === 'Expired');
+      const expiringSoon = inventory.filter(i => i.status === 'Expiring Soon');
+      openModal(`
+        <h3 style="font-size:18px; font-weight:800; color:#C62828; margin-bottom:12px;">Expiry Management Center</h3>
+        <div style="background:#FFEBEE; border:1px solid rgba(198,40,40,0.3); border-radius:12px; padding:10px; font-size:11.5px; font-weight:700; color:#C62828; margin-bottom:14px;">
+          CRITICAL POLICY: Expired food is strictly prohibited from distribution.
+        </div>
+        <div style="font-size:13px; font-weight:800; margin-bottom:6px;">Expired Items (${expired.length})</div>
+        ${expired.length ? expired.map(item => `
+          <div class="card" style="padding:10px; border-color:rgba(198,40,40,0.4);">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-weight:700; font-size:14px;">${item.foodName}</div>
+                <div style="font-size:11px; color:#C62828;">Expired on ${item.expiryDate}</div>
+              </div>
+              <button style="background:#C62828; color:white; border:none; padding:6px 12px; border-radius:8px; font-size:11px; font-weight:700; cursor:pointer;" onclick="disposeExpiredStock('${item.id}')">Dispose Stock</button>
+            </div>
+          </div>
+        `).join('') : '<div style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">No expired food in inventory.</div>'}
+
+        <div style="font-size:13px; font-weight:800; margin:14px 0 6px 0;">Expiring Within 7 Days (${expiringSoon.length})</div>
+        ${expiringSoon.map(item => `
+          <div class="card" style="padding:10px; border-color:rgba(230,81,0,0.4);">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-weight:700; font-size:14px;">${item.foodName}</div>
+                <div style="font-size:11px; color:#E65100;">Exp: ${item.expiryDate} (High Priority)</div>
+              </div>
+              <span class="status-badge badge-warning">${item.availableQuantity} ${item.unit}</span>
+            </div>
+          </div>
+        `).join('')}
+      `);
+    }
+
+    function disposeExpiredStock(id) {
+      inventory = inventory.filter(i => i.id !== id);
+      closeModal();
+      showSnackbar('Expired stock disposed safely.');
+      renderScreen();
+    }
+
+    function openHistoryScreen() {
+      openModal(`
+        <h3 style="font-size:18px; font-weight:800; margin-bottom:14px;">Unified Transaction Audit</h3>
+        <div style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">All Inflows (Donations) and Outflows (Distributions)</div>
+        <div style="max-height: 400px; overflow-y: auto;">
+          ${donations.map(d => `
+            <div class="card" style="padding:10px; margin-bottom:8px;">
+              <div style="display:flex; justify-content:space-between;">
+                <span class="status-badge badge-success">Donation (In)</span>
+                <span style="font-size:10px; font-family:monospace; color:var(--text-muted);">${d.id}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-top:6px; font-weight:700; font-size:13px;">
+                <span>${d.foodItem}</span>
+                <span style="color:var(--primary);">+${d.quantity} ${d.unit}</span>
+              </div>
+              <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">From: ${d.donorName} • ${d.date}</div>
+            </div>
+          `).join('')}
+          ${distributions.map(dist => `
+            <div class="card" style="padding:10px; margin-bottom:8px;">
+              <div style="display:flex; justify-content:space-between;">
+                <span class="status-badge badge-purple">Distribution (Out)</span>
+                <span style="font-size:10px; font-family:monospace; color:var(--text-muted);">${dist.id}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-top:6px; font-weight:700; font-size:13px;">
+                <span>${dist.foodItem}</span>
+                <span style="color:#7C3AED;">-${dist.quantity} ${dist.unit}</span>
+              </div>
+              <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">To: ${dist.recipient} • ${dist.date}</div>
+            </div>
+          `).join('')}
+        </div>
+      `);
+    }
+
+    function openSettingsScreen() {
+      openModal(`
+        <h3 style="font-size:18px; font-weight:800; margin-bottom:14px;">Settings & Information</h3>
+        <div class="card" style="padding:12px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-weight:700; font-size:13px;">Dark Theme</div>
+            <div style="font-size:11px; color:var(--text-muted);">Toggle night mode palette</div>
+          </div>
+          <input type="checkbox" ${isDarkMode ? 'checked' : ''} style="width:20px; height:20px; cursor:pointer;" onchange="toggleTheme(this.checked)" />
+        </div>
+        <div class="card" style="padding:12px; cursor:pointer;" onclick="resetDemoData()">
+          <div style="font-weight:700; font-size:13px; color:var(--primary);">Reset to Sample Demo Data</div>
+          <div style="font-size:11px; color:var(--text-muted);">Restores realistic warehouse, donor & relief records</div>
+        </div>
+        <div class="card" style="padding:12px;">
+          <div style="font-weight:700; font-size:13px;">UN SDG Alignment</div>
+          <div style="font-size:11px; color:var(--text-muted); line-height:1.4; margin-top:4px;">
+            FoodBridge supports <strong>SDG 2 (Zero Hunger)</strong> and <strong>SDG 12.3 (Responsible Consumption)</strong> by cutting food waste and synchronizing distributions.
+          </div>
+        </div>
+      `);
+    }
+
+    function toggleTheme(checked) {
+      isDarkMode = checked;
+      document.body.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
+      closeModal();
+      showSnackbar(`Switched to ${isDarkMode ? 'Dark' : 'Light'} theme.`);
+    }
+
+    function resetDemoData() {
+      location.reload();
+    }
+
+    // Initialize
+    renderScreen();
+  </script>
+</body>
+</html>
+
